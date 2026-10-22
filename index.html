@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PHP2Shell Explained — CVE-2026-109618 &amp; CVE-2026-109619 | php2shell.in</title>
+<meta name="description" content="PHP2Shell explained: two critical unauthenticated RCE vulnerabilities in the PHP engine itself (CVE-2026-109618, CVE-2026-109619, CVSS 9.2). Affected versions, how the attack works, how to check, and how to fix.">
+<style>
+  :root{
+    --bg:#0b0e14; --panel:#12161f; --panel2:#171c28; --line:#232a3a;
+    --txt:#dbe2ef; --mut:#8b94a7; --red:#ff4d5e; --amber:#ffb224; --green:#3ddc84; --blue:#5aa2ff;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--txt);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;line-height:1.7}
+  code,pre{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+  a{color:var(--blue)}
+  .wrap{max-width:960px;margin:0 auto;padding:0 22px}
+  header.top{border-bottom:1px solid var(--line);background:#0d1119;position:sticky;top:0;z-index:10}
+  header.top .wrap{display:flex;align-items:center;justify-content:space-between;padding:14px 22px}
+  .brand{font-weight:800;letter-spacing:.5px;font-size:18px}
+  .brand span{color:var(--red)}
+  nav a{color:var(--mut);text-decoration:none;margin-left:18px;font-size:14px}
+  nav a:hover{color:var(--txt)}
+  .hero{padding:64px 0 40px;text-align:center}
+  .pill{display:inline-block;border:1px solid var(--red);color:var(--red);border-radius:999px;padding:4px 14px;font-size:13px;font-weight:700;letter-spacing:1px;margin-bottom:18px}
+  h1{font-size:clamp(38px,6vw,64px);line-height:1.1;margin-bottom:14px}
+  h1 .r{color:var(--red)}
+  .sub{color:var(--mut);font-size:18px;max-width:720px;margin:0 auto 26px}
+  .cve-tags{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-bottom:8px}
+  .tag{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:8px 14px;font-size:14px}
+  .tag b{color:var(--amber)}
+  .alert{background:#2a1418;border:1px solid var(--red);border-left:5px solid var(--red);border-radius:10px;padding:18px 20px;margin:34px 0}
+  .alert h3{color:var(--red);margin-bottom:8px;font-size:17px}
+  .alert p{font-size:15px}
+  .alert code{background:#00000055;padding:2px 7px;border-radius:5px;color:var(--green)}
+  section{padding:34px 0;border-top:1px solid var(--line)}
+  h2{font-size:27px;margin-bottom:16px}
+  h2 .n{color:var(--red);margin-right:8px}
+  h3{font-size:18px;margin:22px 0 8px;color:var(--amber)}
+  p{margin-bottom:14px;color:var(--txt)}
+  p.mut,li.mut{color:var(--mut)}
+  ul,ol{margin:0 0 16px 22px}
+  li{margin-bottom:8px}
+  .cards{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:18px 0}
+  @media(max-width:700px){.cards{grid-template-columns:1fr}}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:20px}
+  .card h3{margin-top:0;color:var(--txt)}
+  .card .cve{color:var(--red);font-weight:800;font-size:15px}
+  .card .score{display:inline-block;background:#2a1418;color:var(--red);border:1px solid var(--red);font-weight:800;border-radius:6px;padding:2px 10px;margin:8px 0;font-size:14px}
+  table{width:100%;border-collapse:collapse;margin:16px 0;font-size:14.5px}
+  th,td{text-align:left;padding:10px 12px;border:1px solid var(--line);vertical-align:top}
+  th{background:var(--panel2);color:var(--amber)}
+  tr:nth-child(even) td{background:#10141d}
+  pre{background:#07090d;border:1px solid var(--line);border-radius:10px;padding:16px;overflow-x:auto;margin:14px 0;font-size:14px;line-height:1.6}
+  pre .c{color:var(--mut)} pre .g{color:var(--green)} pre .y{color:var(--amber)}
+  .timeline{position:relative;margin:18px 0 8px 8px;padding-left:26px;border-left:2px solid var(--line)}
+  .tl-item{margin-bottom:18px;position:relative}
+  .tl-item::before{content:"";position:absolute;left:-33px;top:6px;width:12px;height:12px;border-radius:50%;background:var(--red)}
+  .tl-item b{color:var(--txt)} .tl-item span{color:var(--mut);font-size:14px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  @media(max-width:700px){.grid2{grid-template-columns:1fr}}
+  .faq{margin-bottom:14px;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px 18px}
+  .faq b{color:var(--amber)}
+  .src li{font-size:14.5px}
+  footer{border-top:1px solid var(--line);padding:26px 0 40px;color:var(--mut);font-size:13.5px;text-align:center}
+  .kbd{background:var(--panel2);border:1px solid var(--line);border-radius:5px;padding:1px 8px;font-size:13.5px}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap">
+    <div class="brand">php<span>2</span>shell.in</div>
+    <nav>
+      <a href="#what">What it is</a>
+      <a href="#cves">The CVEs</a>
+      <a href="#affected">Am I affected?</a>
+      <a href="#fix">Fix it</a>
+      <a href="#sources">Sources</a>
+    </nav>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <div class="hero">
+    <div class="pill">CRITICAL &bull; PATCHED 21 OCT 2026</div>
+    <h1>PHP<span class="r">2</span>Shell</h1>
+    <p class="sub">Two critical vulnerabilities in the <b>PHP engine itself</b> that let an unauthenticated attacker run code on your web server over plain HTTP &mdash; and even read its memory. Your application can be fully up to date and still be exposed.</p>
+    <div class="cve-tags">
+      <div class="tag"><b>CVE-2026-109618</b> &mdash; RCE via memory exhaustion</div>
+      <div class="tag"><b>CVE-2026-109619</b> &mdash; RCE via fatal errors</div>
+      <div class="tag">CVSS 4.0: <b>9.2 Critical</b> (both)</div>
+    </div>
+  </div>
+
+  <div class="alert">
+    <h3>&#9888; If you run PHP, do this now</h3>
+    <p>Upgrade to <code>8.2.35</code>, <code>8.3.36</code>, <code>8.4.27</code> or <code>8.5.12</code> &mdash; then <b>restart every PHP worker</b> (Apache, PHP-FPM). Updating WordPress, Laravel, Drupal or plugins does <b>not</b> fix this. Check changelogs if you use distro packages, which may backport the fix under older version numbers.</p>
+  </div>
+
+  <section id="what">
+    <h2><span class="n">01</span>What is PHP2Shell?</h2>
+    <p><b>PHP2Shell</b> is the nickname researchers gave to an exploit chain built on <b>two separate memory-safety bugs in the PHP interpreter</b> &mdash; not in WordPress, Laravel, or any plugin. Because the vulnerable code runs while PHP is reading the request, <b>before your application gets a say</b>, even a fully patched application on a vulnerable PHP build can be taken over.</p>
+    <p>Both flaws are classified as <b>CWE-824: Access of Uninitialized Pointer</b>. The shared pattern, in one sentence: <i>PHP can leave internal state corrupted when a request ends abnormally, and a later request &mdash; or the shutdown path of the same request &mdash; then trusts that state.</i></p>
+    <p>The bugs were reported by researchers at <b>Calif, Wiz, OpenAI&rsquo;s Codex security team</b> (and Quarkslab on one of them), working with the PHP security team &mdash; found with AI assistance, and disclosed as GitHub advisories <span class="kbd">GHSA-w8hw-w9fx-j79w</span> and <span class="kbd">GHSA-6wmf-4rv5-p3rp</span>.</p>
+
+    <h3>Timeline</h3>
+    <div class="timeline">
+      <div class="tl-item"><b>Code paths introduced</b><br><span>The vulnerable code paths date back to PHP 5.4.0 (2012) &mdash; a ~14-year-old bug.</span></div>
+      <div class="tl-item"><b>Pre-disclosure</b><br><span>Exploit attempts observed in the wild before the public announcement; details leaked a day early and a PoC video was briefly posted, then removed.</span></div>
+      <div class="tl-item"><b>21 October 2026</b><br><span>PHP ships emergency releases: 8.2.35, 8.3.36, 8.4.27, 8.5.12 &mdash; plus source backports for the EOL 7.4, 8.0 and 8.1 branches.</span></div>
+    </div>
+  </section>
+
+  <section id="cves">
+    <h2><span class="n">02</span>The two CVEs</h2>
+    <div class="cards">
+      <div class="card">
+        <div class="cve">CVE-2026-109618</div>
+        <div class="score">CVSS 9.2 &bull; Critical</div>
+        <h3>RCE via memory exhaustion</h3>
+        <p>PHP uses <span class="kbd">longjmp()</span> to abort a request when it hits an out-of-memory error. Some execution contexts don&rsquo;t account for that interruption, leaving request memory uninitialized. Later cleanup reads or branches on that memory &rarr; remote code execution.</p>
+        <p class="mut">Also enables <b>remote memory disclosure</b>: the session upload-progress handler can return chunks of freed server memory inside the <span class="kbd">PHPSESSID</span> response cookie &mdash; a Heartbleed-style leak that can expose DB passwords, session tokens, API keys, even TLS private keys.</p>
+      </div>
+      <div class="card">
+        <div class="cve">CVE-2026-109619</div>
+        <div class="score">CVSS 9.2 &bull; Critical</div>
+        <h3>RCE via fatal errors</h3>
+        <p>PHP also uses <span class="kbd">longjmp()</span> to abort on fatal errors. Some contexts leave global state pointing at memory that gets freed at the end of the request. A subsequent request reads or branches on that invalid state &rarr; use-after-free &rarr; remote code execution.</p>
+        <p class="mut">Includes a fatal-error <b>backtrace generation</b> use-after-free and an OPcache type-confusion primitive.</p>
+      </div>
+    </div>
+
+    <h3>How the attack works (simplified)</h3>
+    <ol>
+      <li><b>The trigger runs before your code.</b> Three of the five demonstrated techniques abuse PHP&rsquo;s <b>session upload-progress</b> feature, which parses multipart request bodies before the application executes. An endpoint that just echoes &ldquo;OK&rdquo; can be affected.</li>
+      <li><b>Memory exhaustion at the wrong moment.</b> A crafted multipart request forces an OOM bailout mid-processing &mdash; after PHP published a pointer or cache slot, but before cleanup bookkeeping ran.</li>
+      <li><b>Stale state survives.</b> In worker-based SAPIs (e.g. Apache prefork) one process serves many requests. The next request landing on the same worker finds a pointer to already-freed memory.</li>
+      <li><b>Heap shaping &rarr; code execution.</b> The attacker&rsquo;s follow-up request places carefully shaped data into that freed space. Get the timing right and the worker executes attacker code <b>as the PHP worker user</b> &mdash; no login, no user interaction.</li>
+    </ol>
+    <p class="mut">Demonstrated primitives beyond RCE: ~67&nbsp;KB of process-memory disclosure via the <span class="kbd">PHPSESSID</span> cookie, arbitrary file read via a stale OPcache class-cache slot redirecting a file operation, session decoder use-after-free, and worker crashes. Note: attack complexity is rated high &mdash; triggering the bug is easier than weaponizing it into reliable RCE, but it has been demonstrated, including against stock WordPress/Drupal/Joomla containers.</p>
+  </section>
+
+  <section id="affected">
+    <h2><span class="n">03</span>Am I affected?</h2>
+    <p>Check your PHP version on every web server (and don&rsquo;t forget embedded copies &mdash; sidecars, workers, appliances need separate inventory):</p>
+    <pre><span class="c"># check the version</span>
+php -v
+
+<span class="c"># example of a VULNERABLE build</span>
+<span class="y">PHP 8.3.35</span> (cli) ...   <span class="c"># &lt; 8.3.36 → vulnerable</span>
+
+<span class="c"># example of a FIXED build</span>
+<span class="g">PHP 8.3.36</span> (cli) ...   <span class="c"># patched</span></pre>
+    <table>
+      <tr><th>Question</th><th>Answer</th></tr>
+      <tr><td>Which PHP versions?</td><td>Believed affected back to <b>5.4.0</b> (2012). Fixed in <b>8.5.12, 8.4.27, 8.3.36, 8.2.35</b>; source backports published for 7.4 / 8.0 / 8.1. Distro packages may carry the fix under older numbers &mdash; check the changelog for the CVE IDs.</td></tr>
+      <tr><td>Which SAPIs?</td><td>Apache <b>mod_php</b> is the easiest target and highest risk; also PHP-FPM, php-cgi, FrankenPHP, LSAPI, Windows PHP.</td></tr>
+      <tr><td>Does updating WordPress / plugins fix it?</td><td><b>No.</b> This is in the PHP runtime. CMS and framework updates are irrelevant to this bug.</td></tr>
+      <tr><td>Does the app need sessions/uploads?</td><td>Not necessarily &mdash; the upload-progress trigger runs before application code, even if the app never calls <span class="kbd">session_start()</span>.</td></tr>
+      <tr><td>What does the attacker get?</td><td>Code execution <b>as the web worker user</b> (not root automatically) &mdash; enough to read configs/DB creds, drop webshells, and pivot. Plus potential memory disclosure of secrets and keys.</td></tr>
+    </table>
+  </section>
+
+  <section id="fix">
+    <h2><span class="n">04</span>Fix it</h2>
+    <h3>The real fix (do this)</h3>
+    <ol>
+      <li>Upgrade PHP to <b>8.5.12 / 8.4.27 / 8.3.36 / 8.2.35</b> (or apply your distro&rsquo;s backported package).</li>
+      <li><b>Restart every PHP worker</b> &mdash; Apache, PHP-FPM, FrankenPHP, anything long-running. The patch only takes effect after restart.</li>
+      <li>Investigate whether the server was touched <b>before</b> you patched (see below) &mdash; assume memory disclosure is possible, so consider rotating DB passwords, API keys, and TLS certificates on exposed hosts.</li>
+    </ol>
+    <h3>Can&rsquo;t patch today? Temporary exposure reduction</h3>
+    <p class="mut">These are <b>not complete workarounds</b> &mdash; they only remove the demonstrated triggers. Patch as soon as possible.</p>
+    <pre><span class="c">; in php.ini — temporary mitigation only, NOT a fix</span>
+session.upload_progress.enabled = <span class="y">0</span>
+opcache.enable = <span class="y">0</span></pre>
+    <ul>
+      <li>Disabling upload-progress tracking removes the trigger for three of the five demonstrated techniques.</li>
+      <li>Review whether fatal-error backtrace generation is enabled in your config.</li>
+      <li>Restrict exposure of PHP services where practical; apply least privilege to the PHP worker&rsquo;s file and credential access.</li>
+      <li>A WAF can act as a compensating control by flagging anomalous multipart payloads, repeated session fields, and abnormal <span class="kbd">PHPSESSID</span> response sizes.</li>
+    </ul>
+    <h3>Signs you may already be compromised</h3>
+    <ul>
+      <li>PHP memory-exhaustion errors and worker crashes correlating with <b>unusually large multipart payloads</b>, excessive field counts, or anomalous session parameters.</li>
+      <li>Unexpectedly large <span class="kbd">PHPSESSID</span> values in responses.</li>
+      <li>Unexpected child processes of the PHP worker, new/changed files in the web root (webshells), persistence mechanisms, unusual outbound connections.</li>
+      <li>Treat it as <b>both</b> a code-execution and a data-disclosure incident: audit credential and session-token exposure too.</li>
+    </ul>
+  </section>
+
+  <section>
+    <h2><span class="n">05</span>FAQ</h2>
+    <div class="faq"><b>Is PHP2Shell a WordPress bug?</b><br>No. It lives in the PHP interpreter. Every PHP application &mdash; WordPress, Drupal, Joomla, Laravel, custom code &mdash; is exposed if the underlying PHP build is vulnerable.</div>
+    <div class="faq"><b>Does the attacker need an account?</b><br>No. Exploitation is unauthenticated and needs no user interaction &mdash; a single crafted HTTP request can trigger the primitives.</div>
+    <div class="faq"><b>Why &ldquo;Heartbleed of PHP&rdquo;?</b><br>Because CVE-2026-109618 can leak ~67&nbsp;KB of live server memory per request through a response cookie, potentially including secrets and private keys &mdash; the same class of failure that made Heartbleed infamous.</div>
+    <div class="faq"><b>Why did it take 14 years to find?</b><br>The bugs sit in exceptional code paths (OOM bailouts, fatal-error handling) that are hard to reach reliably, and turning the memory corruption into working RCE needs precise heap shaping. AI-assisted research made that practical in 2026.</div>
+    <div class="faq"><b>I&rsquo;m on PHP 7.4 / 8.0 / 8.1 &mdash; am I out of luck?</b><br>Those branches are end-of-life, but the PHP team published source backports. Otherwise, migrate to a supported branch or rely on your distro&rsquo;s backported package &mdash; and apply the temporary mitigations meanwhile.</div>
+  </section>
+
+  <section id="sources">
+    <h2><span class="n">06</span>Sources</h2>
+    <ul class="src">
+      <li>Imperva Threat Research &mdash; <a href="https://www.imperva.com/blog/php2shell-vulnerability-updates/">PHP2Shell: When PHP Runs Out of Memory at the Wrong Moment</a> (technical deep-dive: the five exploitation techniques, mitigations, detection)</li>
+      <li>Researchers&rsquo; site &mdash; <a href="https://php2shell.com">php2shell.com</a> (Wiz / Calif / OpenAI disclosure)</li>
+      <li>SeoMods &mdash; <a href="https://seomods.com/blog/php2shell-vulnerability-cve-2026-109618">PHP2Shell Vulnerability: Check and Fix Your Site</a> (GHSA IDs, patch checklist)</li>
+      <li>Pentest-Tools.com &mdash; <a href="https://pentest-tools.com/network-vulnerability-scanning/php2shell-scanner">Free PHP2Shell scanner (CVE-2026-109618 &amp; CVE-2026-109619)</a></li>
+      <li>Technical analysis &mdash; <a href="https://mrdarkroot.github.io/posts/php2shell-cve-2026-109618-109619-analysis/">PHP2Shell: The 14-Year-Old PHP Bug That Just Went Mass-Exploit</a></li>
+    </ul>
+    <p class="mut">CVE-2026-109618 &bull; CVE-2026-109619 &bull; CWE-824 &bull; CVSS v4.0 9.2 (Critical). This page is educational and defensive &mdash; it explains the vulnerability and how to fix it. Last updated 22 Oct 2026.</p>
+  </section>
+
+</div>
+
+<footer>
+  <div class="wrap">
+    php2shell.in &mdash; an independent explainer of the PHP2Shell vulnerabilities. Not affiliated with the PHP project or the discovering researchers.<br>
+    If you run PHP in production, patch now: 8.2.35 / 8.3.36 / 8.4.27 / 8.5.12.
+  </div>
+</footer>
+
+</body>
+</html>
